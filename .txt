@@ -1,0 +1,10 @@
+# =====================================================
+# Packaging suggestion (run these in terminal):
+# =====================================================
+# pip install pyinstaller
+#   → creates dist/VoiceClient.exe (Windows) or equivalent
+
+pyinstaller --onefile --noconsole --icon=app.ico --name "VoiceClient" client.py
+
+pyinstaller --windowed --icon=app.icns --name "VoiceClient" client.py
+
