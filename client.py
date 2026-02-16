@@ -7,12 +7,19 @@ import datetime
 import wave
 import os
 import sys
+import platform
 from pathlib import Path
 import numpy as np
 import sounddevice as sd
 import websockets
 import tkinter as tk
 from tkinter import messagebox
+
+# =====================================================
+# PLATFORM DETECTION
+# =====================================================
+IS_MAC = platform.system() == "Darwin"
+IS_WINDOWS = platform.system() == "Windows"
 
 # =====================================================
 # CONFIG
@@ -26,19 +33,37 @@ INPUT_SR = 16000
 OUTPUT_SR = 24000
 BLOCK_SIZE = 480
 CHANNELS = 1
-VB_CABLE_NAME = "CABLE Input"
+
+# Platform-specific audio device names
+if IS_MAC:
+    OUTPUT_DEVICE_NAME = "BlackHole 2ch"  # For Mac
+else:
+    OUTPUT_DEVICE_NAME = "CABLE Input"  # For Windows (VB-Cable)
+
 TOKEN_FILE = ".voice_client_token"
 RECONNECT_DELAYS = [1, 2, 4, 4, 4,4,4,4]  # seconds – exponential backoff
 RECORDINGS_DIR = Path("recordings")
+
+# Platform-specific UI fonts
+if IS_MAC:
+    UI_FONT = "Helvetica"
+    UI_FONT_BOLD = "Helvetica-Bold"
+else:
+    UI_FONT = "Segoe UI"
+    UI_FONT_BOLD = "Segoe UI"
 
 
 # =====================================================
 # LOGGING
 # =====================================================
+log_file = Path("voice_client.log")
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)]
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler(log_file, encoding='utf-8')
+    ]
 )
 logger = logging.getLogger("voice-client")
 
@@ -94,18 +119,22 @@ class LoginWindow:
         self.root.configure(bg="#0f172a")
         self.root.resizable(False, False)
 
-        self.root.eval('tk::PlaceWindow . center')
+        # Center window (cross-platform)
+        self.root.update_idletasks()
+        x = (self.root.winfo_screenwidth() // 2) - (360 // 2)
+        y = (self.root.winfo_screenheight() // 2) - (340 // 2)
+        self.root.geometry(f"360x340+{x}+{y}")
 
-        tk.Label(self.root, text="Login", font=("Segoe UI", 18, "bold"),
+        tk.Label(self.root, text="Login", font=(UI_FONT_BOLD, 18),
                  bg="#0f172a", fg="#e2e8f0").pack(pady=20)
 
         tk.Label(self.root, text="Username:", bg="#0f172a", fg="#94a3b8").pack()
-        self.username_entry = tk.Entry(self.root, width=28, font=("Segoe UI", 11))
+        self.username_entry = tk.Entry(self.root, width=28, font=(UI_FONT, 11))
         self.username_entry.pack(pady=5)
         self.username_entry.focus()
 
         tk.Label(self.root, text="Password:", bg="#0f172a", fg="#94a3b8").pack()
-        self.password_entry = tk.Entry(self.root, width=28, font=("Segoe UI", 11), show="•")
+        self.password_entry = tk.Entry(self.root, width=28, font=(UI_FONT, 11), show="•")
         self.password_entry.pack(pady=5)
         self.password_entry.bind('<Return>', lambda e: self.login())
 
@@ -113,15 +142,15 @@ class LoginWindow:
         btn_frame.pack(pady=20)
 
         tk.Button(btn_frame, text="Login", command=self.login,
-                  bg="#3b82f6", fg="white", font=("Segoe UI", 10, "bold"),
+                  bg="#3b82f6", fg="white", font=(UI_FONT_BOLD, 10),
                   width=12, relief="flat").pack(side=tk.LEFT, padx=8)
 
         tk.Button(btn_frame, text="Exit", command=self.root.quit,
-                  bg="#475569", fg="white", font=("Segoe UI", 10),
+                  bg="#475569", fg="white", font=(UI_FONT, 10),
                   width=12, relief="flat").pack(side=tk.LEFT, padx=8)
 
         self.status_label = tk.Label(self.root, text="", bg="#0f172a", fg="#f87171",
-                                     font=("Segoe UI", 10), wraplength=320)
+                                     font=(UI_FONT, 10), wraplength=320)
         self.status_label.pack(pady=10)
 
     def login(self):
@@ -177,7 +206,16 @@ class VoiceUI:
         self.root = tk.Tk()
         self.root.overrideredirect(True)
         self.root.attributes("-topmost", True)
-        self.root.attributes("-alpha", 0.96)
+        
+        # Platform-specific window attributes
+        if IS_MAC:
+            try:
+                self.root.attributes("-transparent", True)
+            except:
+                pass
+        else:
+            self.root.attributes("-alpha", 0.96)
+        
         self.root.geometry("520x70+400+300")
         self.root.configure(bg="#000000")
 
@@ -188,7 +226,7 @@ class VoiceUI:
 
         self.status_dot = self.canvas.create_oval(24, 24, 46, 46, fill="#ef4444", outline="")
         self.text_id = self.canvas.create_text(260, 35, text="Starting...", fill="#e2e8f0",
-                                               font=("Segoe UI", 13), anchor="center", width=440)
+                                               font=(UI_FONT, 13), anchor="center", width=440)
 
         self.min_btn = self.canvas.create_text(460, 35, text="─", fill="#94a3b8",
                                                font=("Arial", 26, "bold"), anchor="center", tags="min")
@@ -271,25 +309,43 @@ class VoiceUI:
         os._exit(0)
 
 # =====================================================
-# AUDIO (improved with buffering)
+# AUDIO (improved with buffering and cross-platform device detection)
 # =====================================================
 def find_output_device(name_part):
-    for i, dev in enumerate(sd.query_devices()):
+    """Find audio output device by name, with fallback to default."""
+    devices = sd.query_devices()
+    logger.info(f"Looking for audio device: {name_part}")
+    
+    # Try exact match first
+    for i, dev in enumerate(devices):
         if name_part.lower() in dev["name"].lower() and dev["max_output_channels"] > 0:
+            logger.info(f"Found audio device: {dev['name']} (index {i})")
             return i
-    logger.warning("VB-Cable not found – using default output")
+    
+    # Fallback to default output
+    device_name = "BlackHole 2ch" if IS_MAC else "VB-Cable"
+    logger.warning(f"{device_name} not found – using default output")
+    logger.info("Available audio devices:")
+    for i, dev in enumerate(devices):
+        if dev["max_output_channels"] > 0:
+            logger.info(f"  [{i}] {dev['name']} (outputs: {dev['max_output_channels']})")
+    
     return sd.default.device[1]  # fallback to system default output
 
 class AudioOutput:
     def __init__(self):
-        device = find_output_device(VB_CABLE_NAME)
+        device = find_output_device(OUTPUT_DEVICE_NAME)
         self.stream = sd.RawOutputStream(
             samplerate=OUTPUT_SR, device=device, channels=CHANNELS,
             dtype="int16", latency="low"
         )
 
     def start(self): self.stream.start()
-    def play(self, data): self.stream.write(data)
+    def play(self, data):
+        try:
+            self.stream.write(data)
+        except Exception as e:
+            logger.warning(f"Audio playback error: {e}")
     def stop(self):
         try:
             self.stream.stop()
@@ -301,8 +357,9 @@ class AudioSender:
     def __init__(self, ws, loop):
         self.ws = ws
         self.loop = loop
-        self.queue = asyncio.Queue(maxsize=10)
+        self.queue = asyncio.Queue(maxsize=20)
         self.stream = None
+        self.running = True
 
     def _enqueue(self, data):
         if self.queue.full():
@@ -316,12 +373,16 @@ class AudioSender:
         self.loop.call_soon_threadsafe(self._enqueue, data)
 
     async def send_loop(self):
-        while True:
-            data = await self.queue.get()
+        while self.running:
             try:
+                data = await asyncio.wait_for(self.queue.get(), timeout=1.0)
                 await self.ws.send(data)
-            finally:
                 self.queue.task_done()
+            except asyncio.TimeoutError:
+                continue
+            except Exception as e:
+                logger.error(f"Send error: {e}")
+                break
 
     def start(self):
         self.stream = sd.InputStream(
@@ -331,6 +392,7 @@ class AudioSender:
         self.stream.start()
 
     def stop(self):
+        self.running = False
         try:
             if self.stream:
                 self.stream.stop()
@@ -353,7 +415,13 @@ async def connect_and_run(ui: VoiceUI, auth: AuthManager):
     while True:
         try:
             ui.root.after(0, ui.set_status, "Connecting to server...", "#fbbf24")
-            async with websockets.connect(WS_URI, ping_interval=20, ping_timeout=15) as ws:
+            async with websockets.connect(
+                WS_URI, 
+                ping_interval=20, 
+                ping_timeout=15,
+                max_size=10_000_000,
+                compression=None
+            ) as ws:
                 logger.info("WebSocket connected")
                 ui.root.after(0, ui.set_status, "Authenticating...", "#94a3b8")
                 await ws.send(json.dumps({"type": "auth", "token": auth.token}))
@@ -396,20 +464,20 @@ async def connect_and_run(ui: VoiceUI, auth: AuthManager):
                         ui.root.after(0, ui.indicate_speaking)
                         audio_out.play(message)
                         if wav_file:
-                            wav_file.writeframes(message)
-                            flush_counter += 1
-                            if flush_counter >= FLUSH_INTERVAL:
-                                try:
+                            try:
+                                wav_file.writeframes(message)
+                                flush_counter += 1
+                                if flush_counter >= FLUSH_INTERVAL:
                                     wav_file._file.flush()
                                     os.fsync(wav_file._file.fileno())
-                                except Exception as e:
-                                    logger.warning(f"Flush failed: {e}")
-                                flush_counter = 0
+                                    flush_counter = 0
+                            except Exception as e:
+                                logger.warning(f"Recording error: {e}")
                     else:
                         try:
                             data = json.loads(message)
                             if data.get("type") == "text":
-                                ui.root.after(0, ui.set_status, data["content"])
+                                ui.root.after(0, ui.set_status, data["content"][:100])
                         except:
                             pass
 
@@ -442,12 +510,15 @@ async def connect_and_run(ui: VoiceUI, auth: AuthManager):
             ui.root.after(0, ui.set_connected, False)
             ui.root.after(0, ui.set_status, "Disconnected", "#ef4444")
 
-        # Safer reconnect logic
+        # Reconnect with backoff
         for i, delay in enumerate(RECONNECT_DELAYS):
-            if not await asyncio.to_thread(ui.root.winfo_exists):
-                logger.info("UI window closed – stopping reconnect attempts")
+            try:
+                if not await asyncio.to_thread(ui.root.winfo_exists):
+                    logger.info("UI closed – stopping reconnect")
+                    return
+            except:
                 return
-            ui.root.after(0, ui.set_status, f"Reconnecting in {delay}s ({i+1}/{len(RECONNECT_DELAYS)})...", "#fbbf24")
+            ui.root.after(0, ui.set_status, f"Reconnecting in {delay}s...", "#fbbf24")
             await asyncio.sleep(delay)
 
 async def main_async(ui: VoiceUI, auth: AuthManager):
@@ -469,7 +540,11 @@ async def main_async(ui: VoiceUI, auth: AuthManager):
 # MAIN ENTRY
 # =====================================================
 def main():
-    RECORDINGS_DIR.mkdir(exist_ok=True)
+    try:
+        RECORDINGS_DIR.mkdir(exist_ok=True)
+    except Exception as e:
+        logger.error(f"Cannot create recordings directory: {e}")
+    
     auth = AuthManager()
 
     if not auth.is_authenticated():
@@ -479,13 +554,17 @@ def main():
 
     ui = VoiceUI(auth)
 
-    # Start asyncio in background thread
     def run_async():
         try:
+            if IS_WINDOWS:
+                asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
             asyncio.run(main_async(ui, auth))
         except Exception as e:
             logger.exception("Async loop crashed")
-            ui.root.after(0, lambda: messagebox.showerror("Fatal Error", str(e)))
+            try:
+                ui.root.after(0, lambda: messagebox.showerror("Fatal Error", str(e)))
+            except:
+                pass
 
     thread = threading.Thread(target=run_async, daemon=True)
     thread.start()

@@ -1,0 +1,5 @@
+2026-02-16 17:31:48,012 INFO WebSocket connected
+2026-02-16 17:31:48,320 INFO Authenticated successfully
+2026-02-16 17:31:48,321 INFO Looking for audio device: CABLE Input
+2026-02-16 17:31:48,322 INFO Found audio device: CABLE Input (VB-Audio Virtual C (index 5)
+2026-02-16 17:31:48,376 INFO Started recording to recordings\2026-02-16\received_17-31-48.wav
