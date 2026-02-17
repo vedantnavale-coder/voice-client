@@ -1,5 +1,20 @@
-2026-02-16 17:31:48,012 INFO WebSocket connected
-2026-02-16 17:31:48,320 INFO Authenticated successfully
-2026-02-16 17:31:48,321 INFO Looking for audio device: CABLE Input
-2026-02-16 17:31:48,322 INFO Found audio device: CABLE Input (VB-Audio Virtual C (index 5)
-2026-02-16 17:31:48,376 INFO Started recording to recordings\2026-02-16\received_17-31-48.wav
+2026-02-17 18:05:33,474  INFO     Loaded saved token
+2026-02-17 18:05:35,620  INFO     WebSocket connected
+2026-02-17 18:05:35,638  INFO     Authenticated
+2026-02-17 18:05:35,642  INFO     Found virtual cable: CABLE Input (VB-Audio Virtual C (index: 9)
+2026-02-17 18:05:35,660  INFO     Audio output ONLY to virtual cable (NOT to PC speakers)
+2026-02-17 18:05:35,687  INFO     Microphone input stream started (device: default)
+2026-02-17 18:05:35,689  INFO     Recording → D:\tp\voice-client\recordings\2026-02-17\voice_180535.wav
+2026-02-17 18:06:55,768  INFO     User closed floating window → shutting down
+2026-02-17 18:10:30,151  INFO     Loaded saved token
+2026-02-17 18:10:32,444  INFO     WebSocket connected
+2026-02-17 18:10:37,188  INFO     Authenticated
+2026-02-17 18:10:37,192  INFO     Found virtual cable: CABLE Input (VB-Audio Virtual C (index: 9)
+2026-02-17 18:10:37,209  INFO     Audio output ONLY to virtual cable (NOT to PC speakers)
+2026-02-17 18:10:37,239  INFO     Microphone input stream started (device: default)
+2026-02-17 18:10:37,239  INFO     Recording → D:\tp\voice-client\recordings\2026-02-17\voice_181037.wav
+2026-02-17 18:12:09,105  INFO     Connection closed by server
+2026-02-17 18:12:09,109  INFO     Recording file closed
+2026-02-17 18:12:09,210  INFO     Microphone stream closed
+2026-02-17 18:12:09,214  INFO     Audio output closed
+2026-02-17 18:12:12,278  INFO     User closed floating window → shutting down

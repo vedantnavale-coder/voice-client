@@ -1,0 +1,16 @@
+# Core dependencies for VoiceClient
+# Install with: pip install -r requirements_minimal.txt
+
+# Audio processing
+sounddevice==0.5.5
+numpy==1.26.4
+
+# WebSocket communication
+websockets==16.0
+
+# PyInstaller for building executable
+pyinstaller==6.18.0
+pyinstaller-hooks-contrib==2026.0
+
+# Optional: For better Windows compatibility
+pywin32-ctypes==0.2.3; sys_platform == 'win32'

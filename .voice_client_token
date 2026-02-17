@@ -1,1 +1,12 @@
-{"token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyIiwiZXhwIjoxNzcxODQ4MTA3fQ.lMD7hpvVhaXSoyLprjWbK-u9DFPDZ-ssPNBvo3qnaQs", "user": {"id": 2, "username": "Tejas", "voice": "af_bella", "speed": 0.95, "save_transcript": true, "save_user_audio": true, "save_ai_audio": true}}
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyIiwiZXhwIjoxNzcxOTMyNTM5fQ.TRUCt7CSN6DB_LNaZbRmoEeJ7nVVBP1JX_RvcI5EiC8",
+  "user": {
+    "id": 2,
+    "username": "upthinker",
+    "voice": "af_bella",
+    "speed": 0.95,
+    "save_transcript": true,
+    "save_user_audio": true,
+    "save_ai_audio": true
+  }
+}
